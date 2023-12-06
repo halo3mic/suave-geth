@@ -353,3 +353,7 @@ func (b *LesApiBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *suave.
 func (b *LesApiBackend) BuildBlockFromBundles(context.Context, *types.BuildBlockArgs, []types.SBundle) (*types.Block, *big.Int, error) {
 	return nil, nil, errors.New("not implemented")
 }
+
+func (b *LesApiBackend) ValidateCrTx(ctx context.Context, tx *types.Transaction) error {
+	return errors.New("not implemented")
+}

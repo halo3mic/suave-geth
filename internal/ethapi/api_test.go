@@ -361,6 +361,10 @@ func (b testBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *suave
 	panic("implement me")
 }
 
+func (b testBackend) ValidateLocalTx(ctx context.Context, tx *types.Transaction) error {
+	panic("implement me")
+}
+
 func TestEstimateGas(t *testing.T) {
 	t.Parallel()
 	// Initialize test accounts

@@ -487,3 +487,7 @@ func (b *EthAPIBackend) Call(ctx context.Context, contractAddr common.Address, i
 
 	return res.ReturnData, nil
 }
+
+func (b *EthAPIBackend) ValidateCrTx(ctx context.Context, tx *types.Transaction) error {
+	return b.eth.txPool.ValidateCrTx(tx)
+}

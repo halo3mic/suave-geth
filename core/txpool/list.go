@@ -320,6 +320,32 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 	return true, old
 }
 
+func (l *list) isAdmittable(tx *types.Transaction, priceBump uint64) bool {
+	old := l.txs.Get(tx.Nonce())
+	if old != nil {
+		if old.GasFeeCapCmp(tx) >= 0 || old.GasTipCapCmp(tx) >= 0 {
+			return false
+		}
+		// thresholdFeeCap = oldFC  * (100 + priceBump) / 100
+		a := big.NewInt(100 + int64(priceBump))
+		aFeeCap := new(big.Int).Mul(a, old.GasFeeCap())
+		aTip := a.Mul(a, old.GasTipCap())
+
+		// thresholdTip    = oldTip * (100 + priceBump) / 100
+		b := big.NewInt(100)
+		thresholdFeeCap := aFeeCap.Div(aFeeCap, b)
+		thresholdTip := aTip.Div(aTip, b)
+
+		// We have to ensure that both the new fee cap and tip are higher than the
+		// old ones as well as checking the percentage threshold to ensure that
+		// this is accurate for low (Wei-level) gas price replacements.
+		if tx.GasFeeCapIntCmp(thresholdFeeCap) < 0 || tx.GasTipCapIntCmp(thresholdTip) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Forward removes all transactions from the list with a nonce lower than the
 // provided threshold. Every removed transaction is returned for any post-removal
 // maintenance.

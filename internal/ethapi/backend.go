@@ -75,6 +75,7 @@ type Backend interface {
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
 
 	// Transaction pool API
+	ValidateCrTx(ctx context.Context, tx *types.Transaction) error
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error)
 	GetPoolTransactions() (types.Transactions, error)

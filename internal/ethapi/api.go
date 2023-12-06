@@ -1917,6 +1917,9 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	}
 
 	if _, ok := types.CastTxInner[*types.ConfidentialComputeRequest](tx); ok {
+		if err := s.b.ValidateCrTx(ctx, tx); err != nil {
+			return common.Hash{}, err
+		}
 		state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 		if state == nil || err != nil {
 			return common.Hash{}, err

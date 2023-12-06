@@ -1915,3 +1915,88 @@ func (t *lookup) RemotesBelowTip(threshold *big.Int) types.Transactions {
 func numSlots(tx *types.Transaction) int {
 	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
 }
+
+// Validate transaction included within ConfidentialRequest
+// - Combine validateTx and validateTxBasics
+// - Only allow immediately executable transactions
+// - Add check for price bump
+func (pool *TxPool) ValidateCrTx(tx *types.Transaction) error {
+	hash := tx.Hash()
+	// If the transaction is known, pre-set the error slot
+	if pool.all.Get(hash) != nil {
+		return ErrAlreadyKnown
+	}
+	// Reject transactions over defined size to prevent DOS attacks
+	if tx.Size() > txMaxSize {
+		return ErrOversizedData
+	}
+	// Check whether the init code size has been exceeded.
+	if pool.shanghai.Load() && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {
+		return fmt.Errorf("%w: code size %v limit %v", core.ErrMaxInitCodeSizeExceeded, len(tx.Data()), params.MaxInitCodeSize)
+	}
+	// Transactions can't be negative. This may never happen using RLP decoded
+	// transactions but may occur if you create a transaction using the RPC.
+	if tx.Value().Sign() < 0 {
+		return ErrNegativeValue
+	}
+	// Ensure the transaction doesn't exceed the current block limit gas.
+	if pool.currentMaxGas.Load() < tx.Gas() {
+		return ErrGasLimit
+	}
+	// Sanity check for extremely large numbers
+	if tx.GasFeeCap().BitLen() > 256 {
+		return core.ErrFeeCapVeryHigh
+	}
+	if tx.GasTipCap().BitLen() > 256 {
+		return core.ErrTipVeryHigh
+	}
+	// Ensure gasFeeCap is greater than or equal to gasTipCap.
+	if tx.GasFeeCapIntCmp(tx.GasTipCap()) < 0 {
+		return core.ErrTipAboveFeeCap
+	}
+	// Make sure the transaction is signed properly.
+	if _, err := types.Sender(pool.signer, tx); err != nil {
+		return ErrInvalidSender
+	}
+	// Ensure the transaction has more gas than the basic tx fee.
+	intrGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, pool.istanbul.Load(), pool.shanghai.Load())
+	if err != nil {
+		return err
+	}
+	if tx.Gas() < intrGas {
+		return core.ErrIntrinsicGas
+	}
+	from, _ := types.Sender(pool.signer, tx)
+	// Only immediately executable transactions are allowed
+	sendersNonce := pool.currentState.GetNonce(from)
+	if sendersNonce > tx.Nonce() {
+		return core.ErrNonceTooLow
+	} else if sendersNonce < tx.Nonce() {
+		return core.ErrNonceTooHigh
+	}
+	// Transactor should have enough funds to cover the costs
+	// cost == V + GP * GL
+	balance := pool.currentState.GetBalance(from)
+	if balance.Cmp(tx.Cost()) < 0 {
+		return core.ErrInsufficientFunds
+	}
+	// Check if the transaction is underpriced
+	if !pool.queue[from].isAdmittable(tx, pool.config.PriceBump) {
+		return ErrReplaceUnderpriced
+	}
+	// Verify that replacing transactions will not result in overdraft
+	list := pool.pending[from]
+	if list != nil { // Sender already has pending txs
+		sum := new(big.Int).Add(tx.Cost(), list.totalcost)
+		if repl := list.txs.Get(tx.Nonce()); repl != nil {
+			// Deduct the cost of a transaction replaced by this
+			sum.Sub(sum, repl.Cost())
+		}
+		if balance.Cmp(sum) < 0 {
+			log.Trace("Replacing transactions would overdraft", "sender", from, "balance", pool.currentState.GetBalance(from), "required", sum)
+			return ErrOverdraft
+		}
+	}
+
+	return nil
+}
