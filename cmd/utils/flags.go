@@ -575,6 +575,20 @@ var (
 		Category: flags.SuaveCategory,
 	}
 
+	SuaveBoostRelayUrl = &cli.StringFlag{
+		Name:     "suave.eth.boost_relay_url",
+		EnvVars:  []string{"SUAVE_BOOST_RELAY_URL"},
+		Usage:    "API endpoint for the boost relay",
+		Category: flags.SuaveCategory,
+	}
+
+	SuaveBeaconRpc = &cli.StringFlag{
+		Name:     "suave.eth.beacon_rpc",
+		EnvVars:  []string{"BEACON_RPC"},
+		Usage:    "RPC endpoint for a beacon node",
+		Category: flags.SuaveCategory,
+	}
+
 	SuaveDevModeFlag = &cli.BoolFlag{
 		Name:     "suave.dev",
 		Usage:    "Dev mode for suave",
@@ -1770,6 +1784,14 @@ func SetSuaveConfig(ctx *cli.Context, stack *node.Node, cfg *suave.Config) {
 			// As of now, default to wildcard
 			cfg.ExternalWhitelist = []string{"*"}
 		}
+	}
+
+	if ctx.IsSet(SuaveBoostRelayUrl.Name) {
+		cfg.BoostRelayUrl = ctx.String(SuaveBoostRelayUrl.Name)
+	}
+
+	if ctx.IsSet(SuaveBeaconRpc.Name) {
+		cfg.BeaconRpc = ctx.String(SuaveBeaconRpc.Name)
 	}
 }
 

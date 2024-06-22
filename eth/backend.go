@@ -63,6 +63,7 @@ import (
 	suave_builder_api "github.com/ethereum/go-ethereum/suave/builder/api"
 	suave "github.com/ethereum/go-ethereum/suave/core"
 	"github.com/ethereum/go-ethereum/suave/cstore"
+	beacon_sidecar "github.com/ethereum/go-ethereum/suave/sidecars/beacon"
 	"github.com/flashbots/go-boost-utils/bls"
 )
 
@@ -288,9 +289,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	suaveDaSigner := &cstore.AccountManagerDASigner{Manager: eth.AccountManager()}
 
 	confidentialStoreEngine := cstore.NewEngine(confidentialStoreBackend, confidentialStoreTransport, suaveDaSigner, types.LatestSigner(chainConfig))
-
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil,
-		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry}
+		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry, nil}
+
+	if config.Suave.BeaconRpc != "" || config.Suave.BoostRelayUrl != "" {
+		eth.APIBackend.suaveBeaconSidecar = beacon_sidecar.NewBeaconSidecar(config.Suave.BeaconRpc, config.Suave.BoostRelayUrl)
+	}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}

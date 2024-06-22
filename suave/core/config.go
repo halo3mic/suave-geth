@@ -9,6 +9,8 @@ type Config struct {
 	EthBlockSigningKeyHex         string
 	ExternalWhitelist             []string
 	AliasRegistry                 map[string]string
+	BoostRelayUrl                 string
+	BeaconRpc                     string
 }
 
 var DefaultConfig = Config{}

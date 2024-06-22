@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/suave/artifacts"
 	suave "github.com/ethereum/go-ethereum/suave/core"
+	beacon_sidecar "github.com/ethereum/go-ethereum/suave/sidecars/beacon"
 	"github.com/flashbots/go-boost-utils/bls"
 	"golang.org/x/exp/slices"
 )
@@ -39,6 +40,7 @@ type SuaveExecutionBackend struct {
 	ServiceAliasRegistry   map[string]string
 	ConfidentialStore      ConfidentialStore
 	ConfidentialEthBackend suave.ConfidentialEthBackend
+	BeaconSidecar          *beacon_sidecar.BeaconSidecar
 }
 
 func NewRuntimeSuaveContext(evm *EVM, caller common.Address) *SuaveContext {

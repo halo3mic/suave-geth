@@ -200,6 +200,8 @@ var (
 		utils.SuaveEthBlockSigningKeyFlag,
 		utils.SuaveExternalWhitelistFlag,
 		utils.SuaveDevModeFlag,
+		utils.SuaveBeaconRpc,
+		utils.SuaveBoostRelayUrl,
 	}
 )
 

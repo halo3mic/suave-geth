@@ -40,11 +40,13 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	suave "github.com/ethereum/go-ethereum/suave/core"
 	"github.com/ethereum/go-ethereum/suave/cstore"
+	beacon_sidecar "github.com/ethereum/go-ethereum/suave/sidecars/beacon"
 	"github.com/flashbots/go-boost-utils/bls"
 )
 
@@ -60,6 +62,7 @@ type EthAPIBackend struct {
 	suaveEthBackend           suave.ConfidentialEthBackend
 	suaveExternalWhitelist    []string
 	suaveServiceAliasRegistry map[string]string
+	suaveBeaconSidecar        *beacon_sidecar.BeaconSidecar
 }
 
 // For testing purposes
@@ -436,6 +439,20 @@ func (b *EthAPIBackend) StartMining() error {
 
 func (b *EthAPIBackend) SuaveContext(requestTx *types.Transaction, ccr *types.ConfidentialComputeRequest) vm.SuaveContext {
 	storeTransaction := b.suaveEngine.NewTransactionalStore(requestTx)
+	if b.suaveBeaconSidecar != nil {
+		args, err := b.suaveBeaconSidecar.GetLatestBeaconBuildBlockArgs().Bytes()
+		if err != nil {
+			log.Error("Failed to get latest beacon block args", "err", err)
+		} else {
+			// TODO: allowed peekers etc - anybody can write to it unless there is a special contract that handles this
+			storeTransaction.Store(
+				suave.DataId{},
+				common.Address{},
+				"LatestBeaconBlockArgs",
+				args,
+			)
+		}
+	}
 	return vm.SuaveContext{
 		Context: map[string][]byte{
 			"confidentialInputs": ccr.ConfidentialInputs,
@@ -449,6 +466,7 @@ func (b *EthAPIBackend) SuaveContext(requestTx *types.Transaction, ccr *types.Co
 			ServiceAliasRegistry:   b.suaveServiceAliasRegistry,
 			ConfidentialStore:      storeTransaction,
 			ConfidentialEthBackend: b.suaveEthBackend,
+			BeaconSidecar:          b.suaveBeaconSidecar,
 		},
 	}
 }
